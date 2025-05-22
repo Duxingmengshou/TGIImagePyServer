@@ -1,10 +1,6 @@
 import cv2
 import numpy as np
 
-# 全局保存打乱顺序
-perm_key_storage = {}
-
-
 def add_gaussian_noise(img, mean=0, std=5):
     noise = np.random.normal(mean, std, img.shape)
     noisy_img = img.astype(np.float32) + noise
@@ -96,11 +92,11 @@ def noisy_encrypt_decrypt(img, key=520, mode="encrypt", transmission_noise_level
             perm_high_img = perm_high_img.astype(np.uint8)
 
             # 再叠加更多真实噪声（高斯噪声、椒盐噪声、伽马噪声）
-            # encrypted_img = add_gaussian_noise(encrypted_img, std=20)
+            encrypted_img = add_gaussian_noise(encrypted_img, std=30)
             # encrypted_img = add_random_erasing(encrypted_img, erase_ratio=0.25)
-            # encrypted_img = cut_corner(encrypted_img, cut_ratio=(0.95, 0.95))
-            # encrypted_img = add_salt_pepper_noise(encrypted_img, amount=0.002)
-            # encrypted_img = add_gamma_noise(encrypted_img, shape=1.0, scale=2.0)
+            # encrypted_img = cut_corner(encrypted_img, cut_ratio=(0.5, 0.5))
+            # encrypted_img = add_salt_pepper_noise(encrypted_img, amount=0.15)
+            # encrypted_img = add_gamma_noise(encrypted_img, shape=5.0, scale=2.0)
 
             # perm_high_img = add_gaussian_noise(perm_high_img, std=30)
             # perm_high_img = add_salt_pepper_noise(perm_high_img, amount=0.002)
@@ -112,6 +108,14 @@ def noisy_encrypt_decrypt(img, key=520, mode="encrypt", transmission_noise_level
         if isinstance(img, tuple) and len(img) == 3:
             encrypted_img, perm_high_img, perm = img
             h, w, c = encrypted_img.shape
+
+            flat_img = encrypted_img.reshape(-1, c)
+            num_pixels = flat_img.shape[0]
+            # 打乱
+            perm = rng.permutation(num_pixels)
+            shuffled = flat_img[perm]
+            noise = rng.integers(0, 256, size=shuffled.shape, dtype=np.uint8)
+            perm_high_img = noise.reshape(h, w, c)
 
             encrypted_flat = encrypted_img.reshape(-1, c)
             noise_flat = perm_high_img.reshape(-1, c)
@@ -134,7 +138,7 @@ def noisy_encrypt_decrypt(img, key=520, mode="encrypt", transmission_noise_level
 
 # 使用示例
 if __name__ == "__main__":
-    img = cv2.imread("./oo.jpg")
+    img = cv2.imread("./zhongcao-small.jpg")
     cv2.imshow("Original", img)
 
     encrypted_img, perm_high_img, perm = noisy_encrypt_decrypt(
@@ -143,9 +147,17 @@ if __name__ == "__main__":
     cv2.imshow("Encrypted", encrypted_img)
 
     decrypted_img = noisy_encrypt_decrypt(
-        (encrypted_img, perm_high_img, perm), key=123, mode="decrypt"
+        (encrypted_img, perm_high_img, perm), key=12356123, mode="decrypt"
     )
     cv2.imshow("Decrypted", decrypted_img)
+
+    cv2.imwrite(
+        "./save/encrypted_image（错误密钥）.png", encrypted_img
+    )  # 保存加密后的图像
+    cv2.imwrite(
+        "./save/decrypted_image（错误密钥）.png", decrypted_img
+    )  # 保存解密后的图像
+
 
     cv2.waitKey(0)
     cv2.destroyAllWindows()
